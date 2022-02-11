@@ -1,4 +1,4 @@
-use super::game::Game;
+use super::game::*;
 use super::ui::*;
 use crate::handle_events;
 use crate::Controls;
@@ -135,12 +135,32 @@ pub fn run_anvil(game: &mut Game) {
 
     // Set up texture creator + font
     let texture_creator = game.canvas.texture_creator();
-    
+
     // Pick item
-    display_inventory(game, Some(InventoryMode::Select));
+    let index = match display_inventory(game, Some(InventoryMode::Select)) {
+        Some(x) => x,
+        None => return,
+    };
+
+    // Multiplier for additional value
+    // TODO: Let player know that white can't be used if selected
+    let mult = match game.state.inventory[index].temp_val() {
+        Temp::Under => {
+            display_error(game, "Item not hot enough");
+            return;
+        }
+        Temp::Perfect => 1.5,
+        Temp::Over => 1f32,
+    };
 
     // Pick form
     let form = pick_form(game);
+
+    // Handle stuff
+    let form = match form {
+        None => return,
+        Some(x) => x,
+    };
 
     // Load Bangs
     let bang = texture_creator
@@ -253,7 +273,15 @@ pub fn run_anvil(game: &mut Game) {
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 
+    // Update value + form + location (incorrect for rn)
+    game.state.inventory[index].value = (mult * (points as f32)) as i32;
+    game.state.inventory[index].form = form;
+    game.state.inventory[index].location = Location::Storage;
+
     // Create font to pass to exit_anvil
-    let mut font = game.ttf.load_font("assets/SupermercadoOne-Regular.ttf", 32).unwrap();
+    let mut font = game
+        .ttf
+        .load_font("assets/SupermercadoOne-Regular.ttf", 32)
+        .unwrap();
     exit_anvil(points, &mut game.canvas, &texture_creator, &mut font);
 }

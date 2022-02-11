@@ -56,6 +56,12 @@ pub enum MenuLevel {
     Shop,
 }
 
+pub enum Temp {
+    Perfect,
+    Over,
+    Under,
+}
+
 #[derive(Clone, Copy)]
 pub enum Material {
     Iron,
@@ -98,16 +104,16 @@ pub enum Form {
 impl Form {
     pub fn to_string(&self) -> String {
         match self {
-            Self::Bar => String::from("Bar"),
-            Self::Spear => String::from("Spear"),
-            Self::Axe => String::from("Axe"),
-            Self::Hammer => String::from("Hammer"),
-            Self::Sword => String::from("Sword"),
+            Form::Bar => String::from("Bar"),
+            Form::Spear => String::from("Spear"),
+            Form::Axe => String::from("Axe"),
+            Form::Hammer => String::from("Hammer"),
+            Form::Sword => String::from("Sword"),
         }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Location {
     Storage,
     Forge,
@@ -151,18 +157,73 @@ impl Product {
         s.push_str(&self.form.to_string());
         s.push_str(" ");
         s.push_str(&self.location.to_string());
-        s.push_str(":            ");
+        s.push_str(": ");
         s.push_str(&self.value.to_string());
         s.push_str("$");
 
         s
     }
+    pub fn temp_val(&self) -> Temp {
+        match self.material {
+            Material::Iron => {
+                if self.temp < 2400 {
+                    return Temp::Under;
+                } else if self.temp > 2600 {
+                    return Temp::Over;
+                } else {
+                    return Temp::Perfect;
+                }
+            }
+            Material::Steel => {
+                if self.temp < 2100 {
+                    return Temp::Under;
+                } else if self.temp > 2300 {
+                    return Temp::Over;
+                } else {
+                    return Temp::Perfect;
+                }
+            }
+            Material::Bronze => {
+                if self.temp < 1100 {
+                    return Temp::Under;
+                } else if self.temp > 1300 {
+                    return Temp::Over;
+                } else {
+                    return Temp::Perfect;
+                }
+            }
+            Material::Silver => {
+                if self.temp < 1050 {
+                    return Temp::Under;
+                } else if self.temp > 1250 {
+                    return Temp::Over;
+                } else {
+                    return Temp::Perfect;
+                }
+            }
+            Material::Gold => {
+                if self.temp < 1150 {
+                    return Temp::Under;
+                } else if self.temp > 1350 {
+                    return Temp::Over;
+                } else {
+                    return Temp::Perfect;
+                }
+            }
+        }
+    }
+}
+
+pub struct Upgrades {
+    pub forge_space: i32,
+    pub storage_space: i32,
 }
 
 pub struct GameState {
     pub inventory: Vec<Product>,
     pub money: i32,
     pub reputation: i32,
+    pub upgrades: Upgrades,
 }
 
 impl GameState {
@@ -171,6 +232,10 @@ impl GameState {
             inventory: vec![],
             money: 100,
             reputation: 0,
+            upgrades: Upgrades {
+                forge_space: 1,
+                storage_space: 5,
+            },
         }
     }
 }

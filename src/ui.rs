@@ -7,8 +7,15 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Texture;
 use sdl2::render::TextureCreator;
+use sdl2::EventPump;
 
 use std::time::Duration;
+
+pub enum HandlerRet {
+    Exit,
+    Nothing,
+    Accept,
+}
 
 pub enum InventoryMode {
     BuySell,
@@ -25,8 +32,102 @@ pub fn create_text<'a, T>(
     tc.create_texture_from_surface(&text_s).unwrap()
 }
 
+// Center a texture in a larger rect
+pub fn center_text(outer_rect: Rect, texture: &Texture) -> Rect {
+    // Record width + height for texture
+    let w = texture.query().width;
+    let h = texture.query().height;
+
+    // Find delta width + height
+    let dw = outer_rect.width() - texture.query().width;
+    let dh = outer_rect.height() - texture.query().height;
+
+    // Fail cases
+    if dw < 0 || dh < 0 {
+        panic!("Outer rect must be larger");
+    }
+
+    // Calculate padding offsets
+    let px: i32 = (dw / 2).try_into().unwrap();
+    let py: i32 = (dh / 2).try_into().unwrap();
+
+    // Return
+    Rect::new(outer_rect.x + px, outer_rect.y + py, w, h)
+}
+
+pub fn handle_selection(event_pump: &mut EventPump, active: &mut i32) -> HandlerRet {
+    // Handle events
+    for e in event_pump.poll_iter() {
+        match e {
+            Event::Quit { .. }
+            | Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => return HandlerRet::Exit,
+            Event::KeyDown {
+                keycode: Some(Keycode::Up),
+                ..
+            } => {
+                if *active > -1 {
+                    *active -= 1;
+                }
+            }
+            Event::KeyDown {
+                keycode: Some(Keycode::Down),
+                ..
+            } => {
+                if *active < 3 {
+                    *active += 1;
+                }
+            }
+            Event::KeyDown {
+                keycode: Some(Keycode::Return),
+                ..
+            } => return HandlerRet::Accept,
+            _ => (),
+        }
+    }
+    return HandlerRet::Nothing;
+}
+
+// Display errors to user in pop-up window
+pub fn display_error(game: &mut Game, message: &str) {
+    // Load font
+    let mut font = game
+        .ttf
+        .load_font("assets/SupermercadoOne-Regular.ttf", 26)
+        .unwrap();
+
+    // Prep screen
+
+    // Backdrop
+    let backdrop = Rect::new(150, 120, 300, 240);
+
+    // Create tc
+    let tc = game.canvas.texture_creator();
+
+    // Create text
+    let text = create_text(message, &tc, &mut font, Color::RGB(255, 255, 255));
+
+    // Get text rect
+    let rect = center_text(backdrop, &text);
+
+    // Draw
+    game.canvas.set_draw_color(Color::RGB(255, 255, 255));
+    game.canvas.clear();
+
+    game.canvas.set_draw_color(Color::RGB(0, 0, 0));
+    game.canvas.fill_rect(backdrop).unwrap();
+
+    game.canvas.copy(&text, None, Some(rect));
+    game.canvas.present();
+
+    // Sleep
+    std::thread::sleep(Duration::new(1, 0));
+}
+
 // UI for picking a form
-pub fn pick_form(game: &mut Game) -> Form {
+pub fn pick_form(game: &mut Game) -> Option<Form> {
     // Backdrop setup
     let backdrop = Rect::new(200, 160, 200, 160);
 
@@ -44,10 +145,30 @@ pub fn pick_form(game: &mut Game) -> Form {
 
     // Piece of text for each form
     let mut texts = Vec::<Texture>::new();
-    texts.push(create_text("Spear", &tc, &mut font, Color::RGB(255, 255, 255)));
-    texts.push(create_text("Axe", &tc, &mut font, Color::RGB(255, 255, 255)));
-    texts.push(create_text("Hammer", &tc, &mut font, Color::RGB(255, 255, 255)));
-    texts.push(create_text("Sword", &tc, &mut font, Color::RGB(255, 255, 255)));
+    texts.push(create_text(
+        "Spear",
+        &tc,
+        &mut font,
+        Color::RGB(255, 255, 255),
+    ));
+    texts.push(create_text(
+        "Axe",
+        &tc,
+        &mut font,
+        Color::RGB(255, 255, 255),
+    ));
+    texts.push(create_text(
+        "Hammer",
+        &tc,
+        &mut font,
+        Color::RGB(255, 255, 255),
+    ));
+    texts.push(create_text(
+        "Sword",
+        &tc,
+        &mut font,
+        Color::RGB(255, 255, 255),
+    ));
 
     // Create rects
     let mut rects = Vec::<Rect>::new();
@@ -55,7 +176,9 @@ pub fn pick_form(game: &mut Game) -> Form {
         let w = texts[i].query().width;
         let h = texts[i].query().height;
 
-        rects.push(Rect::new(220, 180 + (i as i32 * h as i32), w, h));
+        let outer = Rect::new(200, 160 + (i as i32 * 40), 200, 40);
+
+        rects.push(center_text(outer, &texts[i]));
     }
 
     // Active selection
@@ -64,43 +187,33 @@ pub fn pick_form(game: &mut Game) -> Form {
     // Loop
     'go: loop {
         // Handle events
-        for e in game.event_pump.poll_iter() {
-            match e {
-                Event::KeyDown {
-                    keycode: Some(Keycode::Up),
-                    ..
-                } => {
-                    if active > -1 {
-                        active -= 1;
-                    }
-                },
-                Event::KeyDown {
-                    keycode: Some(Keycode::Down),
-                    ..
-                } => {
-                    if active < 3 {
-                        active += 1;
-                    }
-                },
-                Event::KeyDown {
-                    keycode: Some(Keycode::Return),
-                    ..
-                } => return vals[active as usize],
-                _ => (),
+        let e = handle_selection(&mut game.event_pump, &mut active);
+
+        match e {
+            HandlerRet::Exit => break 'go,
+            HandlerRet::Accept => {
+                if active >= 0 {
+                    return Some(vals[active as usize]);
+                }
             }
-        }
+            _ => (),
+        };
 
         // Draw
-        game.canvas.set_draw_color(Color::RGB(150, 150, 150));
+        game.canvas.set_draw_color(Color::RGBA(150, 150, 150, 100));
         game.canvas.clear();
 
         game.canvas.set_draw_color(Color::RGB(0, 0, 0));
         game.canvas.fill_rect(backdrop);
 
         // Draw active
-        game.canvas.set_draw_color(Color::RGB(50, 50, 50));
-        game.canvas.fill_rect(Rect::new(200, 160 + (active * 40), 200, 40));
+        if active >= 0 {
+            game.canvas.set_draw_color(Color::RGB(50, 50, 50));
+            game.canvas
+                .fill_rect(Rect::new(200, 160 + (active * 40), 200, 40));
+        }
 
+        // Draw texts
         for (i, texture) in texts.iter().enumerate() {
             game.canvas.copy(texture, None, Some(rects[i])).unwrap();
         }
@@ -108,6 +221,7 @@ pub fn pick_form(game: &mut Game) -> Form {
         // Update
         game.canvas.present();
     }
+    None
 }
 
 // Display the inventory screen
@@ -167,7 +281,12 @@ pub fn display_inventory(game: &mut Game, mode: Option<InventoryMode>) -> Option
         // Create the textures
         for (i, item) in game.state.inventory.iter().enumerate() {
             let s = item.to_string();
-            items.push(create_text(&s, &tc, &mut font, Color::RGB(255, 255, 255)));
+            let c = match item.temp_val() {
+                Temp::Under => Color::RGB(255, 255, 255),
+                Temp::Over => Color::RGB(235, 204, 52),
+                Temp::Perfect => Color::RGB(119, 235, 52),
+            };
+            items.push(create_text(&s, &tc, &mut font, c));
         }
 
         // Black background
@@ -297,6 +416,8 @@ pub fn display_inventory(game: &mut Game, mode: Option<InventoryMode>) -> Option
                             && active >= 0
                             && active < 5
                             && game.state.money >= store_products[active as usize].value
+                            && (game.state.inventory.len() as i32)
+                                < game.state.upgrades.storage_space
                         {
                             game.state.inventory.push(store_products[active as usize]);
                             game.state.money -=
