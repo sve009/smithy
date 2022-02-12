@@ -130,7 +130,7 @@ fn exit_anvil<T>(
     println!("You scored: {}", points);
 }
 
-pub fn run_anvil(game: &mut Game) {
+pub fn run_anvil(game: &mut Game) -> bool {
     // Run minigame
 
     // Set up texture creator + font
@@ -139,7 +139,7 @@ pub fn run_anvil(game: &mut Game) {
     // Pick item
     let index = match display_inventory(game, Some(InventoryMode::Select)) {
         Some(x) => x,
-        None => return,
+        None => return false,
     };
 
     // Multiplier for additional value
@@ -147,7 +147,7 @@ pub fn run_anvil(game: &mut Game) {
     let mult = match game.state.inventory[index].temp_val() {
         Temp::Under => {
             display_error(game, "Item not hot enough");
-            return;
+            return false;
         }
         Temp::Perfect => 1.5,
         Temp::Over => 1f32,
@@ -158,7 +158,7 @@ pub fn run_anvil(game: &mut Game) {
 
     // Handle stuff
     let form = match form {
-        None => return,
+        None => return false,
         Some(x) => x,
     };
 
@@ -284,4 +284,7 @@ pub fn run_anvil(game: &mut Game) {
         .load_font("assets/SupermercadoOne-Regular.ttf", 32)
         .unwrap();
     exit_anvil(points, &mut game.canvas, &texture_creator, &mut font);
+
+    // Return that it ran
+    true
 }

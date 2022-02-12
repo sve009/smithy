@@ -32,6 +32,60 @@ pub fn create_text<'a, T>(
     tc.create_texture_from_surface(&text_s).unwrap()
 }
 
+// Continue screen
+pub fn continue_screen(game: &mut Game, lines: Vec<&str>) {
+    // Load font
+    let mut font = game
+        .ttf
+        .load_font("assets/SupermercadoOne-Regular.ttf", 26)
+        .unwrap();
+
+    // Create tc
+    let tc = game.canvas.texture_creator();
+
+    // Generate textures
+    let mut texts = Vec::<Texture>::new();
+
+    for line in lines {
+        texts.push(create_text(line, &tc, &mut font, Color::RGB(255, 255, 255)));
+    }
+
+    texts.push(create_text("Press ENTER to continue", &tc, &mut font, Color::RGB(255, 255, 255)));
+
+    // Split screen into 6 rects vertically, each the length of the screen
+    // Top four can hold lines, fifth blank, sixth has instructions
+    let mut rects = Vec::<Rect>::new();
+
+    for i in 0..(texts.len() - 1) {
+        let outer = Rect::new(0, 80 * (i as i32), 600, 80);
+
+        rects.push(center_text(outer, &texts[i]));
+    }
+
+    rects.push(center_text(Rect::new(0, 400, 600, 80), &texts[texts.len() - 1]));
+
+    // UI loop
+    'scan: loop {
+        // Background
+        game.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        game.canvas.clear();
+
+        // Proceed when enter hit
+        let mut dummy_active = -1;
+        match handle_selection(&mut game.event_pump, &mut dummy_active) {
+            HandlerRet::Accept => return,
+            _ => (),
+        };
+
+        // Draw lines
+        for i in 0..texts.len() {
+            game.canvas.copy(&texts[i], None, Some(rects[i]));
+        }
+
+        game.canvas.present();
+    }
+}
+
 // Center a texture in a larger rect
 pub fn center_text(outer_rect: Rect, texture: &Texture) -> Rect {
     // Record width + height for texture

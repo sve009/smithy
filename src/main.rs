@@ -192,10 +192,10 @@ pub fn main() {
     let desk: Texture = tc.load_texture(Path::new("assets/Desk.png")).unwrap();
     let p: Texture = tc.load_texture(Path::new("assets/Player.png")).unwrap();
 
-    let anvil_rect = Rect::new(400, 300, 120, 120);
-    let forge_rect = Rect::new(250, -100, 200, 300);
-    let desk_rect = Rect::new(15, 160, 150, 300);
-    let mut p_rect = Rect::new(280, 220, 120, 120);
+    let anvil_rect = Rect::new(389, 288, 120, 120);
+    let forge_rect = Rect::new(319, -59, 201, 219);
+    let desk_rect = Rect::new(69, 152, 125, 250);
+    let mut p_rect = Rect::new(224, 178, 120, 120);
 
     game.canvas.set_draw_color(Color::RGB(0, 255, 255));
     game.canvas.clear();
@@ -215,7 +215,7 @@ pub fn main() {
             // End condition (for now)
             if days == 5 {
                 let m = game.state.money;
-                display_error(&mut game, &format!("You made {}$", m));
+                continue_screen(&mut game, vec!["Two weeks have passed", &format!("You made {}$", m)]);
                 return;
             }
 
@@ -236,10 +236,11 @@ pub fn main() {
         if controls.enter {
             controls.enter = false;
             if let Some(_) = p_rect.intersection(anvil_rect) {
-                // Hammering always takes 1/3 day
-                i += 20 * 60;
                 // Run anvil minigame
-                run_anvil(&mut game);
+                if run_anvil(&mut game) {
+                    // Hammering always takes 1/3 day
+                    i += 20 * 60;
+                }
             } else if let Some(_) = p_rect.intersection(desk_rect) {
                 // Test inventory
                 display_inventory(&mut game, None);
